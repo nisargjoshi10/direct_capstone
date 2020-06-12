@@ -101,10 +101,6 @@ class PlastVAEGen():
             self.pre_trained = True
             self.n_pretrain_epochs = self.n_epochs
             self.n_epochs = 0
-            del self.X_train
-            del self.X_val
-            del self.y_train
-            del self.y_val
         else:
             self.trained = True
             self.pre_trained = False
