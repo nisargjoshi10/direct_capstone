@@ -56,7 +56,7 @@ class PlastVAEGen():
                               'optimizer_state_dict': None,
                               'best_loss': self.best_loss,
                               'input_shape': None,
-                              'latent_size': None,
+                              'latent_size': self.latent_size,
                               'history': self.history,
                               'params': self.params}
         self.best_state = {'name': self.name,
@@ -65,7 +65,7 @@ class PlastVAEGen():
                            'optimizer_state_dict': None,
                            'best_loss': self.best_loss,
                            'input_shape': None,
-                           'latent_size': None,
+                           'latent_size': self.latent_size,
                            'history': self.history,
                            'params': self.params}
         self.trained = False
@@ -208,6 +208,8 @@ class PlastVAEGen():
         for i, sm in enumerate(self.usable_smiles):
             self.encoded[i,:] = torch.tensor(uu.encode_smiles(sm, self.params['MAX_LENGTH'], self.params['CHAR_DICT']))
         self.input_shape = (self.params['NUM_CHAR'], self.params['MAX_LENGTH'])
+        self.current_state['input_shape'] = self.input_shape
+        self.best_state['input_shape'] = self.input_shape
 
         # Data preparation
         self.X_train = self.encoded[self.params['TRAIN_IDXS'],:]
