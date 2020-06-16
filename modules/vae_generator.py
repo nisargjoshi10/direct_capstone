@@ -115,6 +115,8 @@ class PlastVAEGen():
                 self.current_state['model_state_dict']['predictor.dense2.bias'] = torch.FloatTensor(128).uniform_(-alpha_1, alpha_1).requires_grad_()
                 self.current_state['model_state_dict']['predictor.dense3.weight'] = torch.FloatTensor(1, 128).uniform_(-alpha_3, alpha_3).requires_grad_()
                 self.current_state['model_state_dict']['predictor.dense3.bias'] = torch.FloatTensor(1).uniform_(-alpha_1, alpha_1).requires_grad_()
+            else:
+                self.predict_property = False
         else:
             self.trained = True
             self.pre_trained = False
@@ -133,6 +135,7 @@ class PlastVAEGen():
                     self.network = GRUGRU(self.current_state['input_shape'], self.current_state['latent_size'], embed_dim=self.params['EMBED_DIM'], enc_bi=True, arch_size=self.params['ARCH_SIZE'])
                 elif self.params['MODEL_CLASS'] == 'biGRUbiGRU':
                     self.network = GRUGRU(self.current_state['input_shape'], self.current_state['latent_size'], embed_dim=self.params['EMBED_DIM'], enc_bi=True, dec_bi=True, arch_size=self.params['ARCH_SIZE'])
+                self.predict_property = False
             self.network.load_state_dict(self.current_state['model_state_dict'])
 
     def initiate(self, data):
