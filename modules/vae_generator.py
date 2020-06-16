@@ -89,7 +89,10 @@ class PlastVAEGen():
         for key in self.current_state.keys():
             self.current_state[key] = loaded_checkpoint[key]
 
-        self.name = self.current_state['name']
+        if self.name is None:
+            self.name = self.current_state['name']
+        else:
+            pass
         self.history = self.current_state['history']
         self.n_epochs = self.current_state['epoch']
         self.best_loss = self.current_state['best_loss']
@@ -116,6 +119,7 @@ class PlastVAEGen():
             self.trained = True
             self.pre_trained = False
             if predict_property:
+                self.predict_property = True
                 if self.params['MODEL_CLASS'] == 'GRUGRU':
                     self.network = GRUGRUPredict(self.current_state['input_shape'], self.current_state['latent_size'], embed_dim=self.params['EMBED_DIM'], arch_size=self.params['ARCH_SIZE'])
             else:
