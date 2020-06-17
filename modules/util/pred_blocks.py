@@ -144,6 +144,21 @@ class GRUDecoder(nn.Module):
         hidden = weight.new_zeros(self.n_layers, batch_size, self.hidden_dim)
         return hidden
 
+class Predictor(nn.Module):
+    def __init__(self,
+                 latent_size):
+        super().__init__()
+
+        self.dense1 = nn.Linear(latent_size, 128)
+        self.dense2 = nn.Linear(128, 128)
+        self.dense3 = nn.Linear(128, 1)
+
+    def forward(self, mu):
+        x = F.relu(self.dense1(mu))
+        x = F.relu(self.dense2(x))
+        predictions = F.relu(self.dense3(x))
+        return predictions
+
 class ConvGRU(nn.Module):
     def __init__(self,
                  input_shape,
@@ -157,7 +172,7 @@ class ConvGRU(nn.Module):
     def forward(self, x):
         z, mu, logvar = self.encoder(x)
         x_decode = self.decoder(z)
-        return x_decode, mu, logvar
+        return x_decode, mu, logvar, torch.zeros(x_decode.shape[0])
 
 class GRUGRU(nn.Module):
     def __init__(self,
@@ -178,4 +193,27 @@ class GRUGRU(nn.Module):
         x = self.embedding(x)
         z, mu, logvar = self.encoder(x)
         x_decode = self.decoder(z)
-        return x_decode, mu, logvar
+        return x_decode, mu, logvar, torch.zeros(x_decode.shape[0])
+
+class GRUGRUPredict(nn.Module):
+    def __init__(self,
+                 input_shape,
+                 latent_size,
+                 embed_dim,
+                 enc_bi=False,
+                 dec_bi=False,
+                 arch_size='small'):
+        super().__init__()
+
+        self.embedding = nn.Embedding(input_shape[0], embed_dim)
+        self.encoder = GRUEncoder(input_shape, latent_size, embed_dim, bi_direc=enc_bi, arch_size=arch_size)
+        self.decoder = GRUDecoder(input_shape, latent_size, bi_direc=dec_bi)
+        self.predictor = Predictor(latent_size)
+
+    def forward(self, x):
+        x = x.long()
+        x = self.embedding(x)
+        z, mu, logvar = self.encoder(x)
+        x_decode = self.decoder(z)
+        predictions = self.predictor(mu)
+        return x_decode, mu, logvar, predictions

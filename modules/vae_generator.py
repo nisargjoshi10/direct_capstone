@@ -16,8 +16,8 @@ import torch.nn.functional as F
 
 # me
 import util.util as uu
-from util.pred_blocks import ConvGRU, GRUGRU
-from util.losses import vae_bce_loss, vae_ce_loss
+from util.pred_blocks import ConvGRU, GRUGRU, GRUGRUPredict
+from util.losses import vae_bce_loss, vae_ce_loss, vae_predictor_ce_loss
 
 class PlastVAEGen():
     def __init__(self, params={}, name=None, weigh_freq=True, verbose=False, watch=False):
@@ -84,12 +84,15 @@ class PlastVAEGen():
                 fn += '.' + ext
         torch.save(state, os.path.join(path, fn))
 
-    def load(self, checkpoint_path, transfer=False):
+    def load(self, checkpoint_path, transfer=False, predict_property=False):
         loaded_checkpoint = torch.load(checkpoint_path, map_location=torch.device('cpu'))
         for key in self.current_state.keys():
             self.current_state[key] = loaded_checkpoint[key]
 
-        self.name = self.current_state['name']
+        if self.name is None:
+            self.name = self.current_state['name']
+        else:
+            pass
         self.history = self.current_state['history']
         self.n_epochs = self.current_state['epoch']
         self.best_loss = self.current_state['best_loss']
@@ -101,19 +104,38 @@ class PlastVAEGen():
             self.pre_trained = True
             self.n_pretrain_epochs = self.n_epochs
             self.n_epochs = 0
+            if predict_property:
+                self.predict_property = True
+                alpha_1 = 1 / np.sqrt(128)
+                alpha_2 = 1 / np.sqrt(128)
+                alpha_3 = 1
+                self.current_state['model_state_dict']['predictor.dense1.weight'] = torch.FloatTensor(128, self.latent_size).uniform_(-alpha_1, alpha_1).requires_grad_()
+                self.current_state['model_state_dict']['predictor.dense1.bias'] = torch.FloatTensor(128).uniform_(-alpha_1, alpha_1).requires_grad_()
+                self.current_state['model_state_dict']['predictor.dense2.weight'] = torch.FloatTensor(128, 128).uniform_(-alpha_2, alpha_2).requires_grad_()
+                self.current_state['model_state_dict']['predictor.dense2.bias'] = torch.FloatTensor(128).uniform_(-alpha_1, alpha_1).requires_grad_()
+                self.current_state['model_state_dict']['predictor.dense3.weight'] = torch.FloatTensor(1, 128).uniform_(-alpha_3, alpha_3).requires_grad_()
+                self.current_state['model_state_dict']['predictor.dense3.bias'] = torch.FloatTensor(1).uniform_(-alpha_1, alpha_1).requires_grad_()
+            else:
+                self.predict_property = False
         else:
             self.trained = True
             self.pre_trained = False
-            if self.params['MODEL_CLASS'] == 'ConvGRU':
-                self.network = ConvGRU(self.current_state['input_shape'], self.current_state['latent_size'])
-            elif self.params['MODEL_CLASS'] == 'ConvbiGRU':
-                self.network = ConvGRU(self.current_state['input_shape'], self.current_state['latent_size'], dec_bi=True)
-            elif self.params['MODEL_CLASS'] == 'GRUGRU':
-                self.network = GRUGRU(self.current_state['input_shape'], self.current_state['latent_size'], embed_dim=self.params['EMBED_DIM'],arch_size=self.params['ARCH_SIZE'])
-            elif self.params['MODEL_CLASS'] == 'biGRUGRU':
-                self.network = GRUGRU(self.current_state['input_shape'], self.current_state['latent_size'], embed_dim=self.params['EMBED_DIM'], enc_bi=True, arch_size=self.params['ARCH_SIZE'])
-            elif self.params['MODEL_CLASS'] == 'biGRUbiGRU':
-                self.network = GRUGRU(self.current_state['input_shape'], self.current_state['latent_size'], embed_dim=self.params['EMBED_DIM'], enc_bi=True, dec_bi=True, arch_size=self.params['ARCH_SIZE'])
+            if predict_property:
+                self.predict_property = True
+                if self.params['MODEL_CLASS'] == 'GRUGRU':
+                    self.network = GRUGRUPredict(self.current_state['input_shape'], self.current_state['latent_size'], embed_dim=self.params['EMBED_DIM'], arch_size=self.params['ARCH_SIZE'])
+            else:
+                if self.params['MODEL_CLASS'] == 'ConvGRU':
+                    self.network = ConvGRU(self.current_state['input_shape'], self.current_state['latent_size'])
+                elif self.params['MODEL_CLASS'] == 'ConvbiGRU':
+                    self.network = ConvGRU(self.current_state['input_shape'], self.current_state['latent_size'], dec_bi=True)
+                elif self.params['MODEL_CLASS'] == 'GRUGRU':
+                    self.network = GRUGRU(self.current_state['input_shape'], self.current_state['latent_size'], embed_dim=self.params['EMBED_DIM'], arch_size=self.params['ARCH_SIZE'])
+                elif self.params['MODEL_CLASS'] == 'biGRUGRU':
+                    self.network = GRUGRU(self.current_state['input_shape'], self.current_state['latent_size'], embed_dim=self.params['EMBED_DIM'], enc_bi=True, arch_size=self.params['ARCH_SIZE'])
+                elif self.params['MODEL_CLASS'] == 'biGRUbiGRU':
+                    self.network = GRUGRU(self.current_state['input_shape'], self.current_state['latent_size'], embed_dim=self.params['EMBED_DIM'], enc_bi=True, dec_bi=True, arch_size=self.params['ARCH_SIZE'])
+                self.predict_property = False
             self.network.load_state_dict(self.current_state['model_state_dict'])
 
     def initiate(self, data):
@@ -156,26 +178,32 @@ class PlastVAEGen():
         # else:
         #     self.params['CHAR_WEIGHTS'] = torch.ones(self.params['NUM_CHAR'], dtype=torch.float)
 
-        self.X_train = self.encoded[self.params['TRAIN_IDXS'],:]
-        self.X_val = self.encoded[self.params['VAL_IDXS'],:]
-        self.y_train = self.usable_lls[self.params['TRAIN_IDXS']]
-        self.y_val = self.usable_lls[self.params['VAL_IDXS']]
+        X_train = self.encoded[self.params['TRAIN_IDXS'],:]
+        X_val = self.encoded[self.params['VAL_IDXS'],:]
+        y_train = self.usable_lls[self.params['TRAIN_IDXS']]
+        y_val = self.usable_lls[self.params['VAL_IDXS']]
+        self.train_data = np.concatenate([X_train, y_train.reshape(-1,1)], axis=1)
+        self.val_data = np.concatenate([X_val, y_val.reshape(-1,1)], axis=1)
 
         # Build network
         if self.trained:
             assert self.input_shape == self.current_state['input_shape'], "ERROR - Shape of data different than that used to train loaded model"
             assert self.latent_size == self.current_state['latent_size'], "ERROR - Latent space of trained model unequal to input parameter"
         else:
-            if self.params['MODEL_CLASS'] == 'ConvGRU':
-                self.network = ConvGRU(self.input_shape, self.latent_size)
-            elif self.params['MODEL_CLASS'] == 'ConvbiGRU':
-                self.network = ConvGRU(self.input_shape, self.latent_size, dec_bi=True)
-            elif self.params['MODEL_CLASS'] == 'GRUGRU':
-                self.network = GRUGRU(self.input_shape, self.latent_size, embed_dim=self.params['EMBED_DIM'], arch_size=self.params['ARCH_SIZE'])
-            elif self.params['MODEL_CLASS'] == 'biGRUGRU':
-                self.network = GRUGRU(self.input_shape, self.latent_size, embed_dim=self.params['EMBED_DIM'], enc_bi=True, arch_size=self.params['ARCH_SIZE'])
-            elif self.params['MODEL_CLASS'] == 'biGRUbiGRU':
-                self.network = GRUGRU(self.input_shape, self.latent_size, embed_dim=self.params['EMBED_DIM'], enc_bi=True, dec_bi=True, arch_size=self.params['ARCH_SIZE'])
+            if self.predict_property:
+                if self.params['MODEL_CLASS'] == 'GRUGRU':
+                    self.network = GRUGRUPredict(self.current_state['input_shape'], self.current_state['latent_size'], embed_dim=self.params['EMBED_DIM'], arch_size=self.params['ARCH_SIZE'])
+            else:
+                if self.params['MODEL_CLASS'] == 'ConvGRU':
+                    self.network = ConvGRU(self.input_shape, self.latent_size)
+                elif self.params['MODEL_CLASS'] == 'ConvbiGRU':
+                    self.network = ConvGRU(self.input_shape, self.latent_size, dec_bi=True)
+                elif self.params['MODEL_CLASS'] == 'GRUGRU':
+                    self.network = GRUGRU(self.input_shape, self.latent_size, embed_dim=self.params['EMBED_DIM'], arch_size=self.params['ARCH_SIZE'])
+                elif self.params['MODEL_CLASS'] == 'biGRUGRU':
+                    self.network = GRUGRU(self.input_shape, self.latent_size, embed_dim=self.params['EMBED_DIM'], enc_bi=True, arch_size=self.params['ARCH_SIZE'])
+                elif self.params['MODEL_CLASS'] == 'biGRUbiGRU':
+                    self.network = GRUGRU(self.input_shape, self.latent_size, embed_dim=self.params['EMBED_DIM'], enc_bi=True, dec_bi=True, arch_size=self.params['ARCH_SIZE'])
         if self.pre_trained:
             self.network.load_state_dict(self.current_state['model_state_dict'])
 
@@ -212,10 +240,12 @@ class PlastVAEGen():
         self.best_state['input_shape'] = self.input_shape
 
         # Data preparation
-        self.X_train = self.encoded[self.params['TRAIN_IDXS'],:]
-        self.X_val = self.encoded[self.params['VAL_IDXS'],:]
-        self.y_train = self.usable_lls[self.params['TRAIN_IDXS']]
-        self.y_val = self.usable_lls[self.params['VAL_IDXS']]
+        X_train = self.encoded[self.params['TRAIN_IDXS'],:]
+        X_val = self.encoded[self.params['VAL_IDXS'],:]
+        y_train = self.usable_lls[self.params['TRAIN_IDXS']]
+        y_val = self.usable_lls[self.params['VAL_IDXS']]
+        self.train_data = np.concatenate([X_train, y_train.reshape(-1,1)], axis=1)
+        self.val_data = np.concatenate([X_val, y_val.reshape(-1,1)], axis=1)
 
         if self.watch:
             pass
@@ -257,13 +287,13 @@ class PlastVAEGen():
             self.current_state['params'] = self.params
 
         # Create data iterables
-        train_loader = torch.utils.data.DataLoader(self.X_train,
+        train_loader = torch.utils.data.DataLoader(self.train_data,
                                                    batch_size=self.batch_size,
                                                    shuffle=True,
                                                    num_workers=0,
                                                    pin_memory=False,
                                                    drop_last=True)
-        val_loader = torch.utils.data.DataLoader(self.X_val,
+        val_loader = torch.utils.data.DataLoader(self.val_data,
                                                  batch_size=self.batch_size,
                                                  shuffle=True,
                                                  num_workers=0,
@@ -271,11 +301,18 @@ class PlastVAEGen():
                                                  drop_last=True)
 
 
+        # Create optimizer
         if self.trained:
             self.optimizer = optim.Adam(self.network.parameters(), lr=self.lr)
             self.optimizer.load_state_dict(self.current_state['optimizer_state_dict'])
         else:
             self.optimizer = optim.Adam(self.network.parameters(), lr=self.lr)
+
+        # Create loss function
+        if self.predict_property:
+            loss_func = vae_predictor_ce_loss
+        else:
+            loss_func = vae_ce_loss
 
         # Set up logger
         if log and not self.trained:
@@ -284,7 +321,7 @@ class PlastVAEGen():
                 log_file = open('trials/log{}.txt'.format('_'+self.name), 'a')
             else:
                 log_file = open('trials/log.txt', 'a')
-            log_file.write('epoch,batch_idx,data_type,tot_loss,bce_loss,kld_loss\n')
+            log_file.write('epoch,batch_idx,data_type,tot_loss,bce_loss,kld_loss,pred_loss\n')
             log_file.close()
 
         # Set up metric evaluation
@@ -308,9 +345,10 @@ class PlastVAEGen():
                 if use_gpu:
                     data = data.cuda()
 
-                x = torch.autograd.Variable(data)
-                x_decode, mu, logvar = self.network(x)
-                loss, bce, kld = vae_ce_loss(x, x_decode, mu, logvar, self.params['CHAR_WEIGHTS'], self.params['KL_BETA'])
+                x = torch.autograd.Variable(data[:,:-1])
+                targets = torch.autograd.Variable(data[:,-1])
+                x_decode, mu, logvar, predictions = self.network(x)
+                loss, bce, kld, mse = loss_func(x, x_decode, mu, logvar, targets, predictions, self.params['CHAR_WEIGHTS'], self.params['KL_BETA'])
                 if self.watch:
                     pass
                     #wandb.log({'BCE Loss': bce.item(), 'KLD Loss': kld.item()})
@@ -332,7 +370,7 @@ class PlastVAEGen():
                         log_file = open('trials/log{}.txt'.format('_'+self.name), 'a')
                     else:
                         log_file = open('trials/log.txt', 'a')
-                    log_file.write('{},{},{},{},{},{}\n'.format(self.n_epochs,batch_idx,'train',loss.item(),bce.item(),kld.item()))
+                    log_file.write('{},{},{},{},{},{},{}\n'.format(self.n_epochs,batch_idx,'train',loss.item(),bce.item(),kld.item(),mse.item()))
                     log_file.close()
             train_loss = np.mean(losses)
             self.history['train_loss'].append(train_loss)
@@ -345,16 +383,17 @@ class PlastVAEGen():
                 if use_gpu:
                     data = data.cuda()
 
-                x = torch.autograd.Variable(data)
-                x_decode, mu, logvar = self.network(x)
-                loss, bce, kld = vae_ce_loss(x, x_decode, mu, logvar, self.params['CHAR_WEIGHTS'], self.params['KL_BETA'])
+                x = torch.autograd.Variable(data[:,:-1])
+                targets = torch.autograd.Variable(data[:,-1])
+                x_decode, mu, logvar, predictions = self.network(x)
+                loss, bce, kld, mse = loss_func(x, x_decode, mu, logvar, targets, predictions, self.params['CHAR_WEIGHTS'], self.params['KL_BETA'])
                 losses.append(loss.item())
                 if log:
                     if self.name is not None:
                         log_file = open('trials/log{}.txt'.format('_'+self.name), 'a')
                     else:
                         log_file = open('trials/log.txt', 'a')
-                    log_file.write('{},{},{},{},{},{}\n'.format(self.n_epochs,batch_idx,'test',loss.item(),bce.item(),kld.item()))
+                    log_file.write('{},{},{},{},{},{},{}\n'.format(self.n_epochs,batch_idx,'test',loss.item(),bce.item(),kld.item(),mse.item()))
                     log_file.close()
             val_loss = np.mean(losses)
             self.history['val_loss'].append(val_loss)
