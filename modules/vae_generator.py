@@ -70,6 +70,7 @@ class PlastVAEGen():
                            'params': self.params}
         self.trained = False
         self.pre_trained = False
+        self.predict_property = False
 
     def save(self, state, fn, path='checkpoints'):
         os.makedirs(path, exist_ok=True)
