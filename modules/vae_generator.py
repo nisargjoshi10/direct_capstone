@@ -70,6 +70,7 @@ class PlastVAEGen():
                            'params': self.params}
         self.trained = False
         self.pre_trained = False
+        self.predict_property = False
 
     def save(self, state, fn, path='checkpoints'):
         os.makedirs(path, exist_ok=True)
@@ -192,7 +193,7 @@ class PlastVAEGen():
         else:
             if self.predict_property:
                 if self.params['MODEL_CLASS'] == 'GRUGRU':
-                    self.network = GRUGRUPredict(self.current_state['input_shape'], self.current_state['latent_size'], embed_dim=self.params['EMBED_DIM'], arch_size=self.params['ARCH_SIZE'])
+                    self.network = GRUGRUPredict(self.input_shape, self.latent_size, embed_dim=self.params['EMBED_DIM'], arch_size=self.params['ARCH_SIZE'])
             else:
                 if self.params['MODEL_CLASS'] == 'ConvGRU':
                     self.network = ConvGRU(self.input_shape, self.latent_size)
@@ -251,7 +252,7 @@ class PlastVAEGen():
             pass
             #wandb.init(project='plastgenvae')
 
-    def train(self, data, epochs=100, save_last=True, save_best=True, log=True, make_grad_gif=False):
+    def train(self, data, epochs=100, save_last=True, save_best=True, log=True, log_latent=False, make_grad_gif=False):
         """
         Function to train model with loaded data
         """
@@ -324,13 +325,18 @@ class PlastVAEGen():
             log_file.write('epoch,batch_idx,data_type,tot_loss,bce_loss,kld_loss,pred_loss\n')
             log_file.close()
 
+        if log_latent:
+            os.makedirs('latent_arrays', exist_ok=True)
+            self.latent_mu_train = np.zeros((epochs, self.train_data.shape[0], self.latent_size+1))
+            self.latent_mu_val = np.zeros((epochs, self.val_data.shape[0], self.latent_size+1))
+
         # Set up metric evaluation
         if self.watch:
             pass
             #wandb.watch(self.network)
 
         # Epoch Looper
-        for epoch in range(epochs):
+        for i, epoch in enumerate(range(epochs)):
             if self.verbose:
                 epoch_counter = '[{}/{}]'.format(epoch+1, epochs)
                 progress_bar = '['+'-'*50+']'
@@ -372,6 +378,9 @@ class PlastVAEGen():
                         log_file = open('trials/log.txt', 'a')
                     log_file.write('{},{},{},{},{},{},{}\n'.format(self.n_epochs,batch_idx,'train',loss.item(),bce.item(),kld.item(),mse.item()))
                     log_file.close()
+                if log_latent:
+                    self.latent_mu_train[i,batch_idx*self.batch_size:(batch_idx+1)*self.batch_size,:-1] = mu.data.cpu().numpy()
+                    self.latent_mu_train[i,batch_idx*self.batch_size:(batch_idx+1)*self.batch_size,-1] = targets.data.cpu().numpy()
             train_loss = np.mean(losses)
             self.history['train_loss'].append(train_loss)
 
@@ -395,6 +404,9 @@ class PlastVAEGen():
                         log_file = open('trials/log.txt', 'a')
                     log_file.write('{},{},{},{},{},{},{}\n'.format(self.n_epochs,batch_idx,'test',loss.item(),bce.item(),kld.item(),mse.item()))
                     log_file.close()
+                if log_latent:
+                    self.latent_mu_val[i,batch_idx*self.batch_size:(batch_idx+1)*self.batch_size,:-1] = mu.data.cpu().numpy()
+                    self.latent_mu_val[i,batch_idx*self.batch_size:(batch_idx+1)*self.batch_size,-1] = targets.data.cpu().numpy()
             val_loss = np.mean(losses)
             self.history['val_loss'].append(val_loss)
             print('Epoch - {}  Train Loss - {}  Val Loss - {}'.format(self.n_epochs,
@@ -417,6 +429,10 @@ class PlastVAEGen():
             self.current_state['best_loss'] = self.best_loss
             self.current_state['history'] = self.history
             self.best_state['history'] = self.history
+
+            if log_latent:
+                np.save(os.path.join('latent_arrays', 'mu_train_{}'.format(self.name)), self.latent_mu_train)
+                np.save(os.path.join('latent_arrays', 'mu_val_{}'.format(self.name)), self.latent_mu_val)
         if save_last:
             self.save(self.current_state, 'latest')
             self.save(self.best_state, 'best')
@@ -432,8 +448,8 @@ class PlastVAEGen():
         self.network.eval()
         h = self.network.decoder.init_hidden(data.shape[0])
         x = torch.autograd.Variable(torch.from_numpy(data))
-        x_decode, mu, logvar = self.network(x)
+        x_decode, mu, logvar, predictions = self.network(x)
         if return_all:
-            return x_decode, mu, logvar
+            return x_decode, mu, logvar, predictions
         else:
             return x_decode.cpu().detach().numpy()
