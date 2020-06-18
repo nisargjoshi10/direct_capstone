@@ -326,8 +326,8 @@ class PlastVAEGen():
 
         if log_latent:
             os.makedirs('latent_arrays', exist_ok=True)
-            self.latent_mu_train = np.zeros((epochs, self.train_data.shape[0], self.latent_size))
-            self.latent_mu_val = np.zeros((epochs, self.val_data.shape[0], self.latent_size))
+            self.latent_mu_train = np.zeros((epochs, self.train_data.shape[0], self.latent_size+1))
+            self.latent_mu_val = np.zeros((epochs, self.val_data.shape[0], self.latent_size+1))
 
         # Set up metric evaluation
         if self.watch:
@@ -378,7 +378,8 @@ class PlastVAEGen():
                     log_file.write('{},{},{},{},{},{},{}\n'.format(self.n_epochs,batch_idx,'train',loss.item(),bce.item(),kld.item(),mse.item()))
                     log_file.close()
                 if log_latent:
-                    self.latent_mu_train[i,batch_idx*self.batch_size:(batch_idx+1)*self.batch_size,:] = mu.data.cpu().numpy()
+                    self.latent_mu_train[i,batch_idx*self.batch_size:(batch_idx+1)*self.batch_size,:-1] = mu.data.cpu().numpy()
+                    self.latent_mu_train[i,batch_idx*self.batch_size:(batch_idx+1)*self.batch_size,-1] = targets.data.cpu().numpy()
             train_loss = np.mean(losses)
             self.history['train_loss'].append(train_loss)
 
@@ -403,7 +404,8 @@ class PlastVAEGen():
                     log_file.write('{},{},{},{},{},{},{}\n'.format(self.n_epochs,batch_idx,'test',loss.item(),bce.item(),kld.item(),mse.item()))
                     log_file.close()
                 if log_latent:
-                    self.latent_mu_val[i,batch_idx*self.batch_size:(batch_idx+1)*self.batch_size,:] = mu.data.cpu().numpy()
+                    self.latent_mu_val[i,batch_idx*self.batch_size:(batch_idx+1)*self.batch_size,:-1] = mu.data.cpu().numpy()
+                    self.latent_mu_val[i,batch_idx*self.batch_size:(batch_idx+1)*self.batch_size,-1] = targets.data.cpu().numpy()
             val_loss = np.mean(losses)
             self.history['val_loss'].append(val_loss)
             print('Epoch - {}  Train Loss - {}  Val Loss - {}'.format(self.n_epochs,
