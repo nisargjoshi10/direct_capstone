@@ -46,6 +46,10 @@ class PlastVAEGen():
             self.params['CHAR_WEIGHTS'] = torch.tensor(self.params['CHAR_WEIGHTS'], dtype=torch.float)
         else:
             self.params['CHAR_WEIGHTS'] = torch.ones(self.params['NUM_CHAR'], dtype=torch.float)
+        if 'PREDICT_PROPERTY' in self.params.keys():
+            self.predict_property = self.params['PREDICT_PROPERTY']
+        else:
+            self.predict_property = False
         self.history = {'train_loss': [],
                         'val_loss': []}
         self.best_loss = np.inf
@@ -70,7 +74,6 @@ class PlastVAEGen():
                            'params': self.params}
         self.trained = False
         self.pre_trained = False
-        self.predict_property = False
 
     def save(self, state, fn, path='checkpoints'):
         os.makedirs(path, exist_ok=True)
