@@ -192,7 +192,7 @@ class PlastVAEGen():
         else:
             if self.predict_property:
                 if self.params['MODEL_CLASS'] == 'GRUGRU':
-                    self.network = GRUGRUPredict(self.current_state['input_shape'], self.current_state['latent_size'], embed_dim=self.params['EMBED_DIM'], arch_size=self.params['ARCH_SIZE'])
+                    self.network = GRUGRUPredict(self.input_shape, self.latent_size, embed_dim=self.params['EMBED_DIM'], arch_size=self.params['ARCH_SIZE'])
             else:
                 if self.params['MODEL_CLASS'] == 'ConvGRU':
                     self.network = ConvGRU(self.input_shape, self.latent_size)
