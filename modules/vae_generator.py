@@ -448,7 +448,7 @@ class PlastVAEGen():
         """
         Predicts output given a set of input data (model must already be trained)
         """
-
+        data = torch.from_numpy(data)
         torch.backends.cudnn.benchmark = True
         use_gpu = torch.cuda.is_available()
         if use_gpu:
@@ -457,7 +457,7 @@ class PlastVAEGen():
             data = data.cuda()
         self.network.eval()
         h = self.network.decoder.init_hidden(data.shape[0])
-        x = torch.autograd.Variable(torch.from_numpy(data))
+        x = torch.autograd.Variable(data)
         x_decode, mu, logvar, predictions = self.network(x)
         if return_all:
             return x_decode, mu, logvar, predictions
