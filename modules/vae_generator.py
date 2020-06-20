@@ -460,6 +460,6 @@ class PlastVAEGen():
         x = torch.autograd.Variable(data)
         x_decode, mu, logvar, predictions = self.network(x)
         if return_all:
-            return x_decode, mu, logvar, predictions
+            return x_decode.cpu().detach().numpy(), mu.cpu().detach().numpy(), logvar.cpu().detach().numpy(), predictions.cpu().detach().numpy()
         else:
             return x_decode.cpu().detach().numpy()
