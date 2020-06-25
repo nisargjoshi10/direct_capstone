@@ -1,6 +1,7 @@
 import re
 import math
 import torch
+import torch.nn.functional as F
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -46,6 +47,11 @@ def remap_checkpoint(fn, fo, new_name=None):
     if new_name is not None:
         ckpt['name'] = new_name
     torch.save(ckpt, fo)
+
+def slerp(p0, p1, t):
+    omega = np.arccos(np.dot(p0/np.linalg.norm(p0), p1/np.linalg.norm(p1)))
+    so = np.sin(omega)
+    return np.sin((1.0-t)*omega) / so * p0 + np.sin(t*omega)/so * p1
 
 # SMILES Helper Functions
 def smi_tokenizer(smile):
@@ -100,6 +106,12 @@ def decode_smiles(one_hot_mat, ord_dict, temp=0.5):
     for i in range(one_hot_mat.shape[1]):
         smile += ord_dict[sample_distribution(one_hot_mat[:,i], temp=temp)]
     return smile
+
+def decode_z(z, model, temp):
+    encoded_reconstruction = model.network.decoder(torch.tensor(z, dtype=torch.float).view(1,-1))[0,:]
+    encoded_reconstruction = F.softmax(encoded_reconstruction, dim=0).detach().numpy()
+    decoded_smile = decode_smiles(encoded_reconstruction, model.params['ORG_DICT'], temp=temp).replace('_', '')
+    return decoded_smile
 
 def get_char_weights(train_smiles, params, freq_penalty=0.5):
     char_dist = {}
