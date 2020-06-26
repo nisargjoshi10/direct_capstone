@@ -3,6 +3,7 @@ This package contains python modules for the analysis, prediction and discovery 
 
 # Installation
 `### TODO: MAKE PIP INSTALLABLE AND INTEGRATE WITH TRAVIS CI ###`
+
 `### TODO: COMMENT FUNCTIONS AND ADD FULL DOCUMENTATION ###`
 
 # Overview
