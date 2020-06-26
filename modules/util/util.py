@@ -9,6 +9,10 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression, Lasso, LinearRegression, SGDClassifier
 from sklearn import model_selection
+import sys
+sys.path.append('../modules')
+import likelihood_predictor
+from likelihood_predictor import PlastPredictor
 # import pubchempy as pcp
 
 # PyTorch Gradients Function
@@ -305,3 +309,92 @@ def calc_polarity(row):
     else:
         polarity = 0
     return polarity
+
+def featurization(pl_data, org_data):
+    reg_param = 10
+    pp = PlastPredictor(reg_param)
+    pp_model = pp.fit_model(pl_data, org_data)
+    cc = pp.clf.coef_
+
+    compar = cc[0] != 0
+    compar = compar.tolist()
+
+    pl_temp = pl_data.tolist()
+    org_temp = org_data.tolist()
+
+    pl_list = []
+
+    for i in range(0,187):
+        count = 0
+        p1 = []
+        for j in compar:
+            if j:
+                p1.append(pl_temp[i][count])
+            else:
+                p1.append(False)
+
+            count += 1
+
+        pl_list.append(p1)
+
+    org_list = []
+
+    for i in range(0, 5000):
+        count = 0
+        o1 = []
+        for j in compar:
+            if j:
+                o1.append(org_temp[i][count])
+            else:
+                o1.append(False)
+
+            count += 1
+
+        org_list.append(o1)
+
+    while np.count_nonzero(cc) > 15:
+
+        pp_model = pp.fit_model(pl_data, org_data)
+        org_acc = pp.predict(org_data, type='binary', class_id='neg')
+        pl_acc = pp.predict(pl_data, type='binary', class_id='pos')
+        cc=pp.clf.coef_
+        compar = cc[0] != 0
+        compar = compar.tolist()
+
+        pl_temp = pl_data.tolist()
+        org_temp = org_data.tolist()
+
+        pl_list = []
+
+        for i in range(0,187):
+            count = 0
+            p1 = []
+            for j in compar:
+                if j:
+                    p1.append(pl_temp[i][count])
+                else:
+                    p1.append(False)
+
+                count += 1
+
+            pl_list.append(p1)
+
+        org_list = []
+
+        for i in range(0, 5000):
+            count = 0
+            o1 = []
+            for j in compar:
+                if j:
+                    o1.append(org_temp[i][count])
+                else:
+                    o1.append(False)
+
+                count += 1
+
+            org_list.append(o1)
+
+        org_data = np.array(org_list)
+        pl_data = np.array(pl_list)
+
+    return cc, pl_list[0], org_list[0]
