@@ -27,3 +27,5 @@ Features for any list of smiles can be generated using `feat_df = gen_features(s
 
 ## Generating New Candidates
 The `vae_generator` module can be used to build and train a VAE for any set of smiles and property. Models pretrained on a subset of the GDB-17 dataset are available in `modules/checkpoints` (NOTE: these models were trained using the GRUGRU architecture). You can choose between convolutional layers, GRU layers or biGRU layers for the encoder and GRU layers or biGRU layers for the decoder. You can also add your property of choice by passing a 2D array with the SMILES and property to the training method. Examples of model creation and training can also be found in `notebooks`.
+
+`### TODO: ADD NOTEBOOK TUTORIAL FOR FULL GENERATIVE PIPELINE ###`
