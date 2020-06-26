@@ -16,4 +16,14 @@ There is currently no single property in existence that is fully descriptive of 
 1. Generating 195 features for each molecule using the RDKit python package
 2. Hand selecting a set of non-plasticizing molecules to use as negative samples for training a logistic regression model (coarse)
 3. Fitting a linear regression model to a proprietary ordinal ranking of plasticizers provided by Cargill, Inc. (fine)
-4. Combining the results from the coarse and fine models to obtain a single value used as proxy for plasticizer effectiveness of a given molecule.
+4. Combining the results from the coarse and fine models to obtain a single value used as a proxy for the plasticizing effectiveness of a given molecule.
+
+`### TODO: IMPROVE SELECTION OF NON-PLASTICIZERS ###`
+`### TODO: IMPLEMENT FINE MODEL ###`
+
+Features for any list of smiles can be generated using `feat_df = gen_features(smiles)`. The `likelihood_predictor` module contains the classes necessary for building and training the coarse and fine models as well as combining them into a single property. An example of the full training pipeline is provided in the `notebooks` folder.
+
+`### TODO: ADD NOTEBOOK TUTORIAL FOR FULL PREDICTIVE PIPELINE ###`
+
+## Generating New Candidates
+The `vae_generator` module can be used to build and train a VAE for any set of smiles and property. Models pretrained on a subset of the GDB-17 dataset are available in `modules/checkpoints` (NOTE: these models were trained using the GRUGRU architecture). You can choose between convolutional layers, GRU layers or biGRU layers for the encoder and GRU layers or biGRU layers for the decoder. You can also add your property of choice by passing a 2D array with the SMILES and property to the training method. Examples of model creation and training can also be found in `notebooks`.
