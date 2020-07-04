@@ -57,6 +57,18 @@ def slerp(p0, p1, t):
     so = np.sin(omega)
     return np.sin((1.0-t)*omega) / so * p0 + np.sin(t*omega)/so * p1
 
+# Synthesizability
+def add_sa_score(train_data, sa_scores):
+    og_smiles = train_data.to_numpy()[:,0]
+    og_scores = train_data.to_numpy()[:,1]
+    new_scores = np.zeros((og_scores.shape[0]))
+    for i, (og_score, sa_score) in enumerate(zip(og_scores, sa_scores)):
+        new_scores[i] = og_score * (1 / sa_score)
+    new_data = {'SMILES': og_smiles,
+                'scores': new_scores}
+    new_df = pd.DataFrame(new_data)
+    return new_df
+
 # SMILES Helper Functions
 def smi_tokenizer(smile):
     pattern =  "(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\\\|\/|_|:|~|@|\?|>|\*|\$|\%[0-9]{2}|[0-9])"
