@@ -283,6 +283,10 @@ def run_pca(pl_sets, other_sets, n_components=2, scaling_factor=0.2):
 
     return [pl_ics_tr, pl_ics_te], [oth_ics_tr, oth_ics_te], pca, scaler
 
+def select_train_features(df):
+    df = pd.concat([df[df.columns[1:195]], df['Polarity']], axis=1)
+    return df
+
 # Polarity parameter calculations
 def calc_num_polar(row):
     num_polar = 0
@@ -321,6 +325,15 @@ def calc_polarity(row):
     else:
         polarity = 0
     return polarity
+
+def apply_polarity(df):
+    df['Num Carbon'] = df.apply(calc_carbon, axis=1)
+    df['Num Polar'] = df.apply(calc_num_polar, axis=1)
+    df['Polarity'] = df.apply(calc_polarity, axis=1)
+    return df
+
+
+### Iterative LASSO
 
 def featurization(pl_data, org_data):
     reg_param = 10

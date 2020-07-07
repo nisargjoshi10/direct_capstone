@@ -38,6 +38,8 @@ class PlastVAEGen():
             self.params['MODEL_CLASS'] = 'ConvGRU'
         if 'ARCH_SIZE' not in self.params.keys():
             self.params['ARCH_SIZE'] = 'small'
+        if 'PRED_SIZE' not in self.params.keys():
+            self.params['PRED_SIZE'] = 'small'
         if 'NUM_CHAR' not in self.params.keys():
             self.params['NUM_CHAR'] = 23
         if 'EMBED_DIM' not in self.params.keys():
@@ -110,15 +112,30 @@ class PlastVAEGen():
             self.n_epochs = 0
             if predict_property:
                 self.predict_property = True
-                alpha_1 = 1 / np.sqrt(128)
-                alpha_2 = 1 / np.sqrt(128)
-                alpha_3 = 1
-                self.current_state['model_state_dict']['predictor.dense1.weight'] = torch.FloatTensor(128, self.latent_size).uniform_(-alpha_1, alpha_1).requires_grad_()
-                self.current_state['model_state_dict']['predictor.dense1.bias'] = torch.FloatTensor(128).uniform_(-alpha_1, alpha_1).requires_grad_()
-                self.current_state['model_state_dict']['predictor.dense2.weight'] = torch.FloatTensor(128, 128).uniform_(-alpha_2, alpha_2).requires_grad_()
-                self.current_state['model_state_dict']['predictor.dense2.bias'] = torch.FloatTensor(128).uniform_(-alpha_1, alpha_1).requires_grad_()
-                self.current_state['model_state_dict']['predictor.dense3.weight'] = torch.FloatTensor(1, 128).uniform_(-alpha_3, alpha_3).requires_grad_()
-                self.current_state['model_state_dict']['predictor.dense3.bias'] = torch.FloatTensor(1).uniform_(-alpha_1, alpha_1).requires_grad_()
+                if self.params['PRED_SIZE'] == 'small':
+                    alpha_1 = 1 / np.sqrt(128)
+                    alpha_2 = 1 / np.sqrt(128)
+                    alpha_3 = 1
+                    self.current_state['model_state_dict']['predictor.predict.0.weight'] = torch.FloatTensor(128, self.latent_size).uniform_(-alpha_1, alpha_1).requires_grad_()
+                    self.current_state['model_state_dict']['predictor.predict.0.bias'] = torch.FloatTensor(128).uniform_(-alpha_1, alpha_1).requires_grad_()
+                    self.current_state['model_state_dict']['predictor.predict.2.weight'] = torch.FloatTensor(128, 128).uniform_(-alpha_2, alpha_2).requires_grad_()
+                    self.current_state['model_state_dict']['predictor.predict.2.bias'] = torch.FloatTensor(128).uniform_(-alpha_2, alpha_2).requires_grad_()
+                    self.current_state['model_state_dict']['predictor.predict.4.weight'] = torch.FloatTensor(1, 128).uniform_(-alpha_3, alpha_3).requires_grad_()
+                    self.current_state['model_state_dict']['predictor.predict.4.bias'] = torch.FloatTensor(1).uniform_(-alpha_3, alpha_3).requires_grad_()
+                elif self.params['PRED_SIZE'] == 'large':
+                    alpha_1 = 1 / np.sqrt(128)
+                    alpha_2 = 1 / np.sqrt(128)
+                    alpha_3 = 1 / np.sqrt(64)
+                    alpha_4 = 1
+                    self.current_state['model_state_dict']['predictor.predict.0.weight'] = torch.FloatTensor(128, self.latent_size).uniform_(-alpha_1, alpha_1).requires_grad_()
+                    self.current_state['model_state_dict']['predictor.predict.0.bias'] = torch.FloatTensor(128).uniform_(-alpha_1, alpha_1).requires_grad_()
+                    self.current_state['model_state_dict']['predictor.predict.2.weight'] = torch.FloatTensor(128, 128).uniform_(-alpha_2, alpha_2).requires_grad_()
+                    self.current_state['model_state_dict']['predictor.predict.2.bias'] = torch.FloatTensor(128).uniform_(-alpha_2, alpha_2).requires_grad_()
+                    self.current_state['model_state_dict']['predictor.predict.4.weight'] = torch.FloatTensor(64, 128).uniform_(-alpha_3, alpha_3).requires_grad_()
+                    self.current_state['model_state_dict']['predictor.predict.4.bias'] = torch.FloatTensor(64).uniform_(-alpha_3, alpha_3).requires_grad_()
+                    self.current_state['model_state_dict']['predictor.predict.6.weight'] = torch.FloatTensor(1, 64).uniform_(-alpha_4, alpha_4).requires_grad_()
+                    self.current_state['model_state_dict']['predictor.predict.6.bias'] = torch.FloatTensor(1).uniform_(-alpha_4, alpha_4).requires_grad_()
+                    pass
             else:
                 self.predict_property = False
         else:
@@ -127,7 +144,7 @@ class PlastVAEGen():
             if predict_property:
                 self.predict_property = True
                 if self.params['MODEL_CLASS'] == 'GRUGRU':
-                    self.network = GRUGRUPredict(self.current_state['input_shape'], self.current_state['latent_size'], embed_dim=self.params['EMBED_DIM'], arch_size=self.params['ARCH_SIZE'])
+                    self.network = GRUGRUPredict(self.current_state['input_shape'], self.current_state['latent_size'], embed_dim=self.params['EMBED_DIM'], arch_size=self.params['ARCH_SIZE'], pred_size=self.params['PRED_SIZE'])
             else:
                 if self.params['MODEL_CLASS'] == 'ConvGRU':
                     self.network = ConvGRU(self.current_state['input_shape'], self.current_state['latent_size'])
@@ -196,7 +213,7 @@ class PlastVAEGen():
         else:
             if self.predict_property:
                 if self.params['MODEL_CLASS'] == 'GRUGRU':
-                    self.network = GRUGRUPredict(self.input_shape, self.latent_size, embed_dim=self.params['EMBED_DIM'], arch_size=self.params['ARCH_SIZE'])
+                    self.network = GRUGRUPredict(self.input_shape, self.latent_size, embed_dim=self.params['EMBED_DIM'], arch_size=self.params['ARCH_SIZE'], pred_size=self.params['PRED_SIZE'])
             else:
                 if self.params['MODEL_CLASS'] == 'ConvGRU':
                     self.network = ConvGRU(self.input_shape, self.latent_size)

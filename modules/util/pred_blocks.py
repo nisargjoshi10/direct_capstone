@@ -146,17 +146,32 @@ class GRUDecoder(nn.Module):
 
 class Predictor(nn.Module):
     def __init__(self,
-                 latent_size):
+                 latent_size,
+                 pred_size):
         super().__init__()
 
-        self.dense1 = nn.Linear(latent_size, 128)
-        self.dense2 = nn.Linear(128, 128)
-        self.dense3 = nn.Linear(128, 1)
+        self.predict = []
+        if pred_size == 'small':
+            self.predict.append(nn.Linear(latent_size, 128))
+            self.predict.append(nn.ReLU())
+            self.predict.append(nn.Linear(128, 128))
+            self.predict.append(nn.ReLU())
+            self.predict.append(nn.Linear(128, 1))
+            self.predict.append(nn.ReLU())
+            self.predict = nn.Sequential(*self.predict)
+        elif pred_size == 'large':
+            self.predict.append(nn.Linear(latent_size, 128))
+            self.predict.append(nn.ReLU())
+            self.predict.append(nn.Linear(128, 128))
+            self.predict.append(nn.ReLU())
+            self.predict.append(nn.Linear(128, 64))
+            self.predict.append(nn.ReLU())
+            self.predict.append(nn.Linear(64, 1))
+            self.predict.append(nn.ReLU())
+            self.predict = nn.Sequential(*self.predict)
 
     def forward(self, mu):
-        x = F.relu(self.dense1(mu))
-        x = F.relu(self.dense2(x))
-        predictions = F.relu(self.dense3(x))
+        predictions = self.predict(mu)
         return predictions
 
 class ConvGRU(nn.Module):
@@ -202,13 +217,14 @@ class GRUGRUPredict(nn.Module):
                  embed_dim,
                  enc_bi=False,
                  dec_bi=False,
-                 arch_size='small'):
+                 arch_size='small',
+                 pred_size='small'):
         super().__init__()
 
         self.embedding = nn.Embedding(input_shape[0], embed_dim)
         self.encoder = GRUEncoder(input_shape, latent_size, embed_dim, bi_direc=enc_bi, arch_size=arch_size)
         self.decoder = GRUDecoder(input_shape, latent_size, bi_direc=dec_bi)
-        self.predictor = Predictor(latent_size)
+        self.predictor = Predictor(latent_size, pred_size=pred_size)
 
     def forward(self, x):
         x = x.long()
