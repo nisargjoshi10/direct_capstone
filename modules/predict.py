@@ -52,7 +52,7 @@ predict_params = {'MAX_LENGTH': big_len,
 def predict_from_data(data, params, ckpt, n_splits, save_fn):
 
     pvg = PlastVAEGen(params=params, name='{}_prop_predictor'.format(model_class))
-    pvg.load(ckpt, transfer=True, predict_property=True)
+    pvg.load(ckpt, transfer=False, predict_property=True)
 
     #encode data
 
