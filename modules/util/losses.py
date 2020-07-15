@@ -23,10 +23,11 @@ def vae_predictor_ce_loss(x, x_decode, mu, logvar, targets, predictions, weights
     x_decode = x_decode.contiguous().view(-1, x_decode.size(2))
     targets = targets.view(-1, 1)
     BCE = F.cross_entropy(x_decode, x, reduction='mean', weight=weights)
-    # BCE = F.nll_loss(x_decode, argmax, reduction='mean')
-    # BCE = max_len * F.binary_cross_entropy(x_decode, x, reduction='mean')
-    # BCE = F.binary_cross_entropy_with_logits(x_decode, x, reduction='mean')
     KLD = beta * -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
+    #logfile = open('trials/mse_tracker.txt', 'a')
+    #for i in range(targets.shape[0]):
+    #    logfile.write(str(round(targets[i].item(), 3))+','+str(round(predictions[i].item(), 3))+'\n')
+    #logfile.close()
     MSE = F.mse_loss(targets, predictions, reduction='mean')
     return BCE + KLD + MSE, BCE, KLD, MSE
 

@@ -52,7 +52,7 @@ predict_params = {'MAX_LENGTH': big_len,
 def predict_from_data(data, params, ckpt, n_splits, save_fn):
 
     pvg = PlastVAEGen(params=params, name='{}_prop_predictor'.format(model_class))
-    pvg.load(ckpt, transfer=False, predict_property=True)
+    pvg.load(ckpt, transfer=True, predict_property=True)
 
     #encode data
 
@@ -88,4 +88,4 @@ def predict_from_data(data, params, ckpt, n_splits, save_fn):
     #     #np.save('predictions/pl_logvar.npy', pl_logvar)
     #     #np.save('predictions/pl_predictions.npy', pl_predictions)
 
-predict_from_data(org_data, predict_params, 'checkpoints/latest_test.ckpt', 10, 'org')
+predict_from_data(org_data, predict_params, 'checkpoints/latest_GRUGRU_prop_pred_epox_run2.ckpt', 10, 'org')
