@@ -373,6 +373,7 @@ class PlastVAEGen():
 
                 x = torch.autograd.Variable(data[:,:-1])
                 targets = torch.autograd.Variable(data[:,-1])
+                targets = targets.float()
                 x_decode, mu, logvar, predictions = self.network(x)
                 loss, bce, kld, mse = loss_func(x, x_decode, mu, logvar, targets, predictions, self.params['CHAR_WEIGHTS'], self.params['KL_BETA'])
                 if self.watch:
@@ -414,6 +415,7 @@ class PlastVAEGen():
 
                 x = torch.autograd.Variable(data[:,:-1])
                 targets = torch.autograd.Variable(data[:,-1])
+                targets = targets.float()
                 x_decode, mu, logvar, predictions = self.network(x)
                 loss, bce, kld, mse = loss_func(x, x_decode, mu, logvar, targets, predictions, self.params['CHAR_WEIGHTS'], self.params['KL_BETA'])
                 losses.append(loss.item())
@@ -428,15 +430,16 @@ class PlastVAEGen():
                     self.latent_mu_val[i,batch_idx*self.batch_size:(batch_idx+1)*self.batch_size,:-1] = mu.data.cpu().numpy()
                     self.latent_mu_val[i,batch_idx*self.batch_size:(batch_idx+1)*self.batch_size,-1] = targets.data.cpu().numpy()
             val_loss = np.mean(losses)
+            print(val_loss, self.best_loss)
             self.history['val_loss'].append(val_loss)
             print('Epoch - {}  Train Loss - {}  Val Loss - {}'.format(self.n_epochs,
                                                                       round(train_loss, 2),
                                                                       round(val_loss, 2)))
             self.n_epochs += 1
 
-            if save_best:
-                if val_loss < self.best_loss:
-                    self.best_loss = val_loss
+            if val_loss < self.best_loss:
+                self.best_loss = val_loss
+                if save_best:
                     self.best_state['epoch'] = self.n_epochs
                     self.best_state['model_state_dict'] = self.network.state_dict()
                     self.best_state['optimizer_state_dict'] = self.optimizer.state_dict()
