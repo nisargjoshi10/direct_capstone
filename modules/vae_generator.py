@@ -101,7 +101,6 @@ class PlastVAEGen():
             pass
         self.history = self.current_state['history']
         self.n_epochs = self.current_state['epoch']
-        self.best_loss = self.current_state['best_loss']
         for k, v in self.current_state['params'].items():
             if k not in self.params.keys():
                 self.params[k] = v
