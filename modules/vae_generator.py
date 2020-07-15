@@ -430,7 +430,6 @@ class PlastVAEGen():
                     self.latent_mu_val[i,batch_idx*self.batch_size:(batch_idx+1)*self.batch_size,:-1] = mu.data.cpu().numpy()
                     self.latent_mu_val[i,batch_idx*self.batch_size:(batch_idx+1)*self.batch_size,-1] = targets.data.cpu().numpy()
             val_loss = np.mean(losses)
-            print(val_loss, self.best_loss)
             self.history['val_loss'].append(val_loss)
             print('Epoch - {}  Train Loss - {}  Val Loss - {}'.format(self.n_epochs,
                                                                       round(train_loss, 2),
