@@ -52,6 +52,16 @@ def remap_checkpoint(fn, fo, new_name=None):
         ckpt['name'] = new_name
     torch.save(ckpt, fo)
 
+def cat_arrays(arr_fn, n_arrays):
+    catted = np.array([])
+    for i in range(n_arrays):
+        arr = np.load(arr_fn + '_{}.npy'.format(i))
+        if i == 0:
+            catted = arr
+        else:
+            catted = np.concatenate([catted, arr], axis=0)
+    return catted
+
 def slerp(p0, p1, t):
     omega = np.arccos(np.dot(p0/np.linalg.norm(p0), p1/np.linalg.norm(p1)))
     so = np.sin(omega)
