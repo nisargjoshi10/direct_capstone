@@ -168,6 +168,7 @@ class PlastVAEGen():
         # Setting up parameters
         self.all_smiles = data[:,0]
         self.all_lls = data[:,1]
+        del data
         self.all_smiles = [uu.smi_tokenizer(smi) for smi in self.all_smiles]
         if 'MAX_LENGTH' not in self.params.keys():
             self.params['MAX_LENGTH'] = 100
@@ -176,14 +177,17 @@ class PlastVAEGen():
 
         # One-hot encoding smiles below the max length
         self.usable_data = [(ll, sm) for ll, sm in zip(self.all_lls, self.all_smiles) if len(sm) < self.params['MAX_LENGTH']]
+        del self.all_smiles, self.all_lls
         self.usable_lls = np.array([x[0] for x in self.usable_data])
         self.usable_smiles = [x[1] for x in self.usable_data]
+        del self.usable_data
         # self.params['CHAR_DICT'], self.params['ORD_DICT'] = uu.get_smiles_vocab(self.usable_smiles)
         self.params['NUM_CHAR'] = len(self.params['CHAR_DICT'])
         self.params['PAD_NUM'] = self.params['CHAR_DICT']['_']
         self.encoded = torch.empty((len(self.usable_smiles), self.params['MAX_LENGTH']))
         for i, sm in enumerate(self.usable_smiles):
             self.encoded[i,:] = torch.tensor(uu.encode_smiles(sm, self.params['MAX_LENGTH'], self.params['CHAR_DICT']))
+        del self.usable_smiles
         self.input_shape = (self.params['NUM_CHAR'], self.params['MAX_LENGTH'])
 
         # Data preparation
@@ -271,7 +275,7 @@ class PlastVAEGen():
             pass
             #wandb.init(project='plastgenvae')
 
-    def train(self, data, epochs=100, save_last=True, save_best=True, log=True, log_latent=False, make_grad_gif=False):
+    def train(self, data, epochs=100, save_last=True, save_best=True, save_latest=True, log=True, log_latent=False, make_grad_gif=False):
         """
         Function to train model with loaded data
         """
@@ -450,6 +454,9 @@ class PlastVAEGen():
             self.current_state['best_loss'] = self.best_loss
             self.current_state['history'] = self.history
             self.best_state['history'] = self.history
+
+            if save_latest:
+                self.save(self.current_state, 'latest')
 
             if log_latent:
                 np.save(os.path.join('latent_arrays', 'mu_train_{}'.format(self.name)), self.latent_mu_train)
